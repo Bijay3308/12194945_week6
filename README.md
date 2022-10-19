@@ -482,4 +482,517 @@ python3 fibonacci_action_client.py
 ```
 ![7](https://user-images.githubusercontent.com/58104378/195507534-d84206f0-29f5-4cd6-a97b-d13026a7b597.png)
 
-This is how you create an action.
+# 3.Composing multiple nodes in a single process
+## 3.1. To discover avilable components
+
+In order to check the available components in the workspace, we run the following commands.
+```
+ros2 component types
+```
+The terminal returns all the available components:
+
+![1](https://user-images.githubusercontent.com/58104378/196777132-cb8dd7be-9725-4107-8a4b-67128efedd9e.png)
+
+## 3.2. Run-time composition using ROS services with a publisher and subscriber
+
+At first, lets start the component container in one terminal :
+```
+ros2 run rclcpp_components component_container
+```
+To verify that the container is running via ros2 command line tools, we run following command in the second terminal which will show a name of the component as an output.
+```
+ros2 component list
+```
+ & in the second terminal, we load the talker component:
+
+```
+ros2 component load /ComponentManager composition composition::Talker
+```
+This command will return the unique ID of the loaded component as well as the name of the node:
+
+After this, we run following code in the second terminal in order to load the listener component:
+```
+ros2 component load /ComponentManager composition composition::Listener
+```
+![2](https://user-images.githubusercontent.com/58104378/196778749-54b3b501-9734-41dc-a5ed-869911f7341e.png)
+![3](https://user-images.githubusercontent.com/58104378/196778764-b9d34d8e-a31a-4544-aacd-afd90bc24d14.png)
+![4](https://user-images.githubusercontent.com/58104378/196778779-c646593a-6fc9-43a5-969c-bb23f2884e2d.png)
+
+
+Finally we can run the ros2 command line utility to inspect the state of the container:
+```
+ros2 component list
+```
+We can see the result as follows:
+
+```
+/ComponentManager
+   1  /talker
+   2  /listener
+```
+## 3.3 Run-time composition using ROS services with a server and client
+
+It is very similar steps to what we did using talker and listener.
+
+In the first terminal, we run:
+```
+ros2 run rclcpp_components component_container
+```
+and after that, in the second terminal, we run following commands to see server and client source code:
+```
+ros2 component load /ComponentManager composition composition::Server
+ros2 component load /ComponentManager composition composition::Client
+```
+![5](https://user-images.githubusercontent.com/58104378/196779881-8bd267e4-b790-49b3-9199-ee7e06cf4997.png)
+
+![6](https://user-images.githubusercontent.com/58104378/196779908-4c89c056-7f38-45ab-ab74-2deace126d56.png)
+
+## 3.4. Compile-time composition using ROS services
+
+By using this demonstration, it shows that the same shared libraries can be reused to compile a single executable running multiple components.
+
+The executable contains all four components from above : talker, listener, server, and client.
+
+In one terminal,
+```
+ros2 run composition manual_composition
+```
+
+![7](https://user-images.githubusercontent.com/58104378/196780394-106a76b3-4f0e-415c-99b9-fb73a42b994f.png)
+
+## 3.5. Run-time composition using dlopen
+
+This demonstration shows an alternative to run-time composition by creating a generic container process an explicity passing the libraries to load without using ROS interfaces. The process will open each library and create one instance of each "rclcpp::Node" class in the library source code.
+```
+ros2 run composition dlopen_composition `ros2 pkg prefix composition`/lib/libtalker_component.so `ros2 pkg prefix composition`/lib/liblistener_component.so
+```
+![8](https://user-images.githubusercontent.com/58104378/196781052-3f184319-57c3-42d3-8557-cbe778f4d14b.png)
+
+## 3.6. Composition using launch actions
+
+While the command line tools are helpful for troubleshooting and diagnosing component setups, starting a group of components at once is frequently more practical. We can make use of ros2 launch's functionality to automate this process.
+```
+ros2 launch composition composition_demo.launch.py
+```
+
+![9](https://user-images.githubusercontent.com/58104378/196781549-edb27897-735d-40bd-9fb3-1ea07ac36261.png)
+
+# 4.Creating a launch file
+In order to create a launch file, we use the rqt_graph and turtlesim packages which we have already installed previously.
+
+## 4.1. Setup
+
+We need to create a new directory to store the launch files:
+```
+mkdir launch
+```
+## 4.3. ros2 launch
+
+In order to run the launch file created, we enter into the earlier created directory and run the following commands:
+```
+cd launch
+ros2 launch turtlesim_mimic_launch.py
+```
+![10](https://user-images.githubusercontent.com/58104378/196783569-3ca3489c-5014-4be1-969c-ad75e3b901ef.png)
+
+two turtlesim windows are opened as shown below:
+![a](https://user-images.githubusercontent.com/58104378/196783854-f8f057a6-7619-47f1-b97c-db0c2420fc05.png)
+
+In order to see the sytem in action, we open a new terminal and run the ros2 topic pub command on /turtlesim1/turtle1/cmd_vel topic to get the first turtle moving.
+
+```
+ros2 topic pub -r 1 /turtlesim1/turtle1/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 2.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: -1.8}}"
+```
+
+You will see that those two turtle will start moving/spinning following the same path:
+![b](https://user-images.githubusercontent.com/58104378/196784528-878e9b56-9622-4258-8188-cca426dd849e.png)
+
+## 4.4. Introspect the system with rqt_graph
+
+Open the new terminal without closing the system and we run rqt_graph.
+```
+rqt_graph
+```
+
+![c](https://user-images.githubusercontent.com/58104378/196785349-10b5df12-a6a7-45db-8119-db9285f78784.png)
+
+# 5.Integrating launch files into ROS2 packages
+## 5.1. Creating a package
+
+Firstly, we create a workspace for the package:
+```
+mkdir -p launch_ws/src
+cd launch_ws/src
+```
+& create a python package:
+
+```
+ros2 pkg create py_launch_example --build-type ament_python
+```
+## 5.2. Creating the structure to hold launch files 
+In order to colcon to launch files, we need to inform Python's setup tools of our launch files using the data_files parameter of setup.
+
+Inside, setup.py file, we input the following codes.
+```
+import os
+from glob import glob
+from setuptools import setup
+
+package_name = 'py_launch_example'
+
+setup(
+    # Other parameters ...
+    data_files=[
+        # ... Other data files
+        # Include all launch files.
+        (os.path.join('share', package_name), glob('launch/*launch.[pxy][yma]*'))
+    ]
+)
+```
+## 5.3. Writing the launch file
+
+Inside the launch directory, we create a new launch file named my_script_launch.py. Here, the launch file should define the generate_launch_description() function which returns a launch.LaunchDescription() to be used by the ros2 launch` verb.
+```
+import launch
+import launch_ros.actions
+
+def generate_launch_description():
+    return launch.LaunchDescription([
+        launch_ros.actions.Node(
+            package='demo_nodes_cpp',
+            executable='talker',
+            name='talker'),
+  ])
+  ```
+ ## 5.4. Building and running the launch file
+
+We go to top-level of the workspace and build the file using:
+
+```
+colcon build
+```
+Once the build is successful, we should be able to run the launch file as follows:
+```
+ros2 launch py_launch_example my_script_launch.py
+```
+![d](https://user-images.githubusercontent.com/58104378/196807513-1e43748a-1bbc-49ce-83a6-7cd8a0019c3f.png)
+
+# 6.Using Substitutions
+## 6.1. Creating and Setting up the package
+
+We create a new package of build_type ament_python named launch_tutorial :
+```
+ros2 pkg create launch_tutorial --build-type ament_python
+```
+and inside of that package, we create a directory called launch.
+```
+mkdir launch_tutorial/launch
+```
+After that, we edit the setup.py file and add in changes so that launch file will be installed successfully.
+```
+import os
+from glob import glob
+from setuptools import setup
+
+package_name = 'launch_tutorial'
+
+setup(
+    # Other parameters ...
+    data_files=[
+        # ... Other data files
+        # Include all launch files.
+        (os.path.join('share', package_name), glob('launch/*launch.[pxy][yma]*'))
+    ]
+)
+```
+## 6.2. Parent Launch File
+
+After the above steps, we created a launch file named : example_main.launch.py in the launch folder of the launch_tutorial directory with the following codes in it:
+```
+from launch_ros.substitutions import FindPackageShare
+
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import PathJoinSubstitution, TextSubstitution
+
+
+def generate_launch_description():
+    colors = {
+        'background_r': '200'
+    }
+
+    return LaunchDescription([
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([
+                    FindPackageShare('launch_tutorial'),
+                    'example_substitutions.launch.py'
+                ])
+            ]),
+            launch_arguments={
+                'turtlesim_ns': 'turtlesim2',
+                'use_provided_red': 'True',
+                'new_background_r': TextSubstitution(text=str(colors['background_r']))
+            }.items()
+        )
+    ])
+```
+## 6.3. Substitutions example launch file
+
+A new file is created in the same folder: example_substitutions.launch.py
+```
+from launch_ros.actions import Node
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
+
+
+def generate_launch_description():
+    turtlesim_ns = LaunchConfiguration('turtlesim_ns')
+    use_provided_red = LaunchConfiguration('use_provided_red')
+    new_background_r = LaunchConfiguration('new_background_r')
+
+    turtlesim_ns_launch_arg = DeclareLaunchArgument(
+        'turtlesim_ns',
+        default_value='turtlesim1'
+    )
+    use_provided_red_launch_arg = DeclareLaunchArgument(
+        'use_provided_red',
+        default_value='False'
+    )
+    new_background_r_launch_arg = DeclareLaunchArgument(
+        'new_background_r',
+        default_value='200'
+    )
+
+    turtlesim_node = Node(
+        package='turtlesim',
+        namespace=turtlesim_ns,
+        executable='turtlesim_node',
+        name='sim'
+    )
+    spawn_turtle = ExecuteProcess(
+        cmd=[[
+            'ros2 service call ',
+            turtlesim_ns,
+            '/spawn ',
+            'turtlesim/srv/Spawn ',
+            '"{x: 2, y: 2, theta: 0.2}"'
+        ]],
+        shell=True
+    )
+    change_background_r = ExecuteProcess(
+        cmd=[[
+            'ros2 param set ',
+            turtlesim_ns,
+            '/sim background_r ',
+            '120'
+        ]],
+        shell=True
+    )
+    change_background_r_conditioned = ExecuteProcess(
+        condition=IfCondition(
+            PythonExpression([
+                new_background_r,
+                ' == 200',
+                ' and ',
+                use_provided_red
+            ])
+        ),
+        cmd=[[
+            'ros2 param set ',
+            turtlesim_ns,
+            '/sim background_r ',
+            new_background_r
+        ]],
+        shell=True
+    )
+
+    return LaunchDescription([
+        turtlesim_ns_launch_arg,
+        use_provided_red_launch_arg,
+        new_background_r_launch_arg,
+        turtlesim_node,
+        spawn_turtle,
+        change_background_r,
+        TimerAction(
+            period=2.0,
+            actions=[change_background_r_conditioned],
+        )
+    ])
+```
+## 6.4. Building the package
+
+We run the build command in the root of the workspace.
+```
+colcon build
+```
+## 6.5. Launching Example
+
+Now we are able to run the example_main.launch.py file using the ros2 launch command.
+```
+ros2 launch launch_tutorial example_main.launch.py
+```
+![e](https://user-images.githubusercontent.com/58104378/196815243-70cb4d75-3083-49a9-a06d-07de7ad188c1.png)
+
+A turtlesim node is started with a blue background. After that second turtle is spawned and the background color is changed to purple and pink respectively.
+
+# 7.Using Event Handlers
+## 7.1. Event handler example launch file
+
+We created a new file named: example_event_handlers.launch.py in the same directory.. i.e. inside launch folder of launch_tutorial package.
+```
+from launch_ros.actions import Node
+
+from launch import LaunchDescription
+from launch.actions import (DeclareLaunchArgument, EmitEvent, ExecuteProcess,
+                            LogInfo, RegisterEventHandler, TimerAction)
+from launch.conditions import IfCondition
+from launch.event_handlers import (OnExecutionComplete, OnProcessExit,
+                                OnProcessIO, OnProcessStart, OnShutdown)
+from launch.events import Shutdown
+from launch.substitutions import (EnvironmentVariable, FindExecutable,
+                                LaunchConfiguration, LocalSubstitution,
+                                PythonExpression)
+
+
+def generate_launch_description():
+    turtlesim_ns = LaunchConfiguration('turtlesim_ns')
+    use_provided_red = LaunchConfiguration('use_provided_red')
+    new_background_r = LaunchConfiguration('new_background_r')
+
+    turtlesim_ns_launch_arg = DeclareLaunchArgument(
+        'turtlesim_ns',
+        default_value='turtlesim1'
+    )
+    use_provided_red_launch_arg = DeclareLaunchArgument(
+        'use_provided_red',
+        default_value='False'
+    )
+    new_background_r_launch_arg = DeclareLaunchArgument(
+        'new_background_r',
+        default_value='200'
+    )
+
+    turtlesim_node = Node(
+        package='turtlesim',
+        namespace=turtlesim_ns,
+        executable='turtlesim_node',
+        name='sim'
+    )
+    spawn_turtle = ExecuteProcess(
+        cmd=[[
+            FindExecutable(name='ros2'),
+            ' service call ',
+            turtlesim_ns,
+            '/spawn ',
+            'turtlesim/srv/Spawn ',
+            '"{x: 2, y: 2, theta: 0.2}"'
+        ]],
+        shell=True
+    )
+    change_background_r = ExecuteProcess(
+        cmd=[[
+            FindExecutable(name='ros2'),
+            ' param set ',
+            turtlesim_ns,
+            '/sim background_r ',
+            '120'
+        ]],
+        shell=True
+    )
+    change_background_r_conditioned = ExecuteProcess(
+        condition=IfCondition(
+            PythonExpression([
+                new_background_r,
+                ' == 200',
+                ' and ',
+                use_provided_red
+            ])
+        ),
+        cmd=[[
+            FindExecutable(name='ros2'),
+            ' param set ',
+            turtlesim_ns,
+            '/sim background_r ',
+            new_background_r
+        ]],
+        shell=True
+    )
+
+    return LaunchDescription([
+        turtlesim_ns_launch_arg,
+        use_provided_red_launch_arg,
+        new_background_r_launch_arg,
+        turtlesim_node,
+        RegisterEventHandler(
+            OnProcessStart(
+                target_action=turtlesim_node,
+                on_start=[
+                    LogInfo(msg='Turtlesim started, spawning turtle'),
+                    spawn_turtle
+                ]
+            )
+        ),
+        RegisterEventHandler(
+            OnProcessIO(
+                target_action=spawn_turtle,
+                on_stdout=lambda event: LogInfo(
+                    msg='Spawn request says "{}"'.format(
+                        event.text.decode().strip())
+                )
+            )
+        ),
+        RegisterEventHandler(
+            OnExecutionComplete(
+                target_action=spawn_turtle,
+                on_completion=[
+                    LogInfo(msg='Spawn finished'),
+                    change_background_r,
+                    TimerAction(
+                        period=2.0,
+                        actions=[change_background_r_conditioned],
+                    )
+                ]
+            )
+        ),
+        RegisterEventHandler(
+            OnProcessExit(
+                target_action=turtlesim_node,
+                on_exit=[
+                    LogInfo(msg=(EnvironmentVariable(name='USER'),
+                            ' closed the turtlesim window')),
+                    EmitEvent(event=Shutdown(
+                        reason='Window closed'))
+                ]
+            )
+        ),
+        RegisterEventHandler(
+            OnShutdown(
+                on_shutdown=[LogInfo(
+                    msg=['Launch was asked to shutdown: ',
+                        LocalSubstitution('event.reason')]
+                )]
+            )
+        ),
+    ])
+
+```
+## 7.2. Building and Running the Command
+
+After adding the file, we go back to the root of the workspace and run the build command there.
+```
+colcon build
+```
+After building, it is important to source the package and run the following codes for the output:
+
+```
+ros2 launch launch_tutorial example_event_handlers.launch.py turtlesim_ns:='turtlesim3' use_provided_red:='True' new_background_r:=200
+```
+![f](https://user-images.githubusercontent.com/58104378/196818216-388e8451-fa7e-4d20-b44c-f3e3cb35573f.png)
+It spawns the second turtle and starts a turtlesim node with a blue backdrop. The background color then changes to pink and then purple. When the turtlesim window closes, the launch file also shuts down.
+
+
